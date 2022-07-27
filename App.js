@@ -87,8 +87,8 @@ export class App extends Component {
       saveToPhotos: true,
     };
 
-    let isCameraPermitted = await requestCameraPermission();
-    let isStoragePermitted = await requestExternalWritePermission();
+    let isCameraPermitted = await this.requestCameraPermission();
+    let isStoragePermitted = await this.requestExternalWritePermission();
     if (isCameraPermitted && isStoragePermitted) {
       launchCamera(options, (response) => {
         console.log('Response = ', response.assets[0]);
