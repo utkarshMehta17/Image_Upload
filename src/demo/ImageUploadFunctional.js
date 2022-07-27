@@ -1,4 +1,4 @@
-import React, { Component } from 'react'
+import React,{useState} from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, Image, PermissionsAndroid, Platform, ImageBackground, ScrollView, ActivityIndicator } from 'react-native'
 import Modal from "react-native-modal";
 import {
@@ -7,37 +7,33 @@ import {
 } from 'react-native-image-picker';
 import { requestUploadImage } from './src/services/ApiCall';
 
+export default function ImageUploadFunctional() {
+  const [modalVisible, setModalVisible] = useState(false)
+  const [loader, setLoader] = useState(false)
 
-export class App extends Component {
-  constructor(props) {
-    super(props)
-    this.state = {
-      modalVisible: false,
-      multiple_images:[]
-    }
-  }
+  const [formValues, setFormValues] = useState({
+    multiple_images:[]
+  })
 
-
-  onImageUpload = () =>{
+  const onImageUpload = () =>{
+    setLoader(true)
     const formData = new FormData();
-
-      formData.append("Profile", this.state.multiple_images);
+    formValues?.crop_images.map((data)=>{
+      formData.append("Profile", data);
+    })
 
     requestUploadImage(formData).then((response) => {
       console.log('Request Completed successful', response.data);
-      if (response.data.IsSuccess == true) {
-        alert('Request Completed')
-      }
-      else if(response.data.IsSuccess == false){
-        alert('Request not Completed!!')
-      }
+      alert('Request Completed')
+      setLoader(false)
+
     }).catch((error) => {
       console.log('Request Completed -- error ', error)
+      setLoader(false)
     })
   }
-
-
-   requestCameraPermission = async () => {
+ 
+  const requestCameraPermission = async () => {
     if (Platform.OS === 'android') {
       try {
         const granted = await PermissionsAndroid.request(
@@ -56,7 +52,7 @@ export class App extends Component {
     } else return true;
   };
  
-   requestExternalWritePermission = async () => {
+  const requestExternalWritePermission = async () => {
     if (Platform.OS === 'android') {
       try {
         const granted = await PermissionsAndroid.request(
@@ -76,7 +72,8 @@ export class App extends Component {
     } else return true;
   };
 
-   captureImage = async (type) => {
+
+  const captureImage = async (type) => {
     let options = {
       mediaType: type,
       maxWidth: 300,
@@ -115,15 +112,29 @@ export class App extends Component {
                 name: `${ran}.jpg`,
                 type: "image/jpeg",
               };
-
-              this.setState({multiple_images: source})
-
+              var crop_image_single = formValues?.crop_images
+              ? formValues?.crop_images
+              : [];
+  
+              crop_image_single.push(source);
+              setFormValues({
+                ...formValues,
+                crop_images: crop_image_single,
+              });
         }
+        // console.log('base64 -> ', response.base64);
+        // console.log('uri -> ', response.uri);
+        // console.log('width -> ', response.width);
+        // console.log('height -> ', response.height);
+        // console.log('fileSize -> ', response.fileSize);
+        // console.log('type -> ', response.type);
+        // console.log('fileName -> ', response.fileName);
+        // setFilePath(response);
       });
     }
   };
  
-   chooseFile = (type) => {
+  const chooseFile = (type) => {
     let options = {
       mediaType: type,
       maxWidth: 300,
@@ -152,41 +163,79 @@ export class App extends Component {
         var source = {
           uri:
             Platform.OS === "ios" ? res?.uri?.replace("file://", "") : res.uri,
-          name: ran,
+          name: `${ran}.jpg`,
           type: "image/jpeg",
         };
-        this.setState({multiple_images: source})
+        var crop_image_single = formValues?.crop_images
+        ? formValues?.crop_images
+        : [];
+
+        crop_image_single.push(source);
+        setFormValues({
+          ...formValues,
+          crop_images: crop_image_single,
+        });
   }
     });
   };
 
+  const deleteCropImage = (cropItem) => {
+    let tempformValues = {...formValues}
+    let cropImages = tempformValues.crop_images
+    let index = cropImages.indexOf(cropItem)
+    if(index > -1){
+      cropImages.splice(index, 1)
+    }
+    tempformValues['crop_images'] = cropImages
+
+    console.log('tempformValues => ', tempformValues)
+
+    setFormValues(tempformValues)
+    console.log('cropImages==>',cropImages.indexOf(cropItem));
+      console.log('cropItem==> delete',cropItem);
+  }
 
 
-
-  render() {
-    return (
-      <View style={styles.container}>
-        <Text>App</Text>
-        <View style={{flex: 1}}>
-        {this.state.multiple_images? 
-        <Image  source={{ uri: this.state.multiple_images.uri }}
-        style={styles.uploadedImageBG}/>
+  return (
+    <View style={styles.container}>
+          <ScrollView>
+            {formValues.crop_images && formValues.crop_images.length > 0? 
+                  formValues.crop_images.map((cropItem)=>
+                     (
+                    <ImageBackground
+                    source={{ uri: cropItem.uri }}
+                    style={styles.uploadedImageBG}
+                    borderRadius={5}>
+                  <TouchableOpacity
+                    style={styles.deleteaiconTOuch}
+                    onPress={() => deleteCropImage(cropItem)}
+                  >
+                    <Image
+                      source={require('./src/assets/trash.png')}
+                      style={styles.deleteIcon}
+                    />
+                  </TouchableOpacity>
+                    </ImageBackground>)
+                  )
                         : null
        }
-       </View>
+       </ScrollView>
 
-{this.state.multiple_images ? <TouchableOpacity
+
+      {formValues?.crop_images?.length > 0 ? <TouchableOpacity
           activeOpacity={0.7}
-          onPress={()=>{this.onImageUpload()}}
+          onPress={()=>{onImageUpload()}}
           style={{backgroundColor:'#000', padding:20, borderRadius:10, marginBottom:15}}>
-
-               <Text style={{color:'#fff'}}>Upload Image</Text> 
+            {loader ? 
+              <ActivityIndicator size="small" color="#fff" />
+            :
+               <Text style={{color:'#fff'}}>Upload Image</Text> }
        
     </TouchableOpacity> : null}
 
-        <TouchableOpacity
+    <TouchableOpacity
           activeOpacity={0.7}
-          onPress={()=>{this.setState({modalVisible: true})}}
+          onPress={()=>{setModalVisible(true)}}
           style={styles.touchableOpacityStyle}>
           <Image
             source={{
@@ -198,25 +247,24 @@ export class App extends Component {
           />
     </TouchableOpacity>
 
-        <Modal isVisible={this.state.modalVisible} onBackdropPress={()=>{this.setState({modalVisible: false})}} useNativeDriver={true}>
+      <Modal isVisible={modalVisible} onBackdropPress={()=>{setModalVisible(false)}} useNativeDriver={true}>
         <View style={{backgroundColor:'white', elevation: 5, borderRadius:10, alignItems:'center', }} >
           <Text style={{padding:20, fontSize:18, fontWeight:'bold'}}>Upload Image from</Text>
             <View style={{flexDirection:'row'}}>
-            <TouchableOpacity style={{marginRight:20}} onPress={()=>{this.chooseFile('photo')}}> 
+            <TouchableOpacity style={{marginRight:20}} onPress={()=>{chooseFile('photo')}}> 
               <Image source={require('./src/assets/addGallaryImage.png')} style={{width:50, height:50}}/>
             </TouchableOpacity>
-            <TouchableOpacity style={{marginLeft:20}} onPress={()=>{this.captureImage('photo')}}> 
+            <TouchableOpacity style={{marginLeft:20}} onPress={()=>{captureImage('photo')}}> 
               <Image source={require('./src/assets/addCameraImage.png')}  style={{width:50, height:50}}/>
             </TouchableOpacity>
             </View>
         </View>
       </Modal>
-      </View>
-    )
-  }
+
+    </View>
+  )
 }
 
-export default App
 
 const styles = StyleSheet.create({
   container: {
